@@ -1,6 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#1f6b4a"/>
-  <path d="M256 96a160 160 0 0 0-136 244L100 412l74-19a160 160 0 1 0 82-297z" fill="#f5f2ea" opacity=".16"/>
-  <rect x="196" y="196" width="120" height="120" rx="26" transform="rotate(45 256 256)" fill="#d9822b"/>
-  <rect x="230" y="230" width="52" height="52" rx="12" transform="rotate(45 256 256)" fill="#1f6b4a"/>
+  <!-- BOT DPT: um "D" recortado, com dois olhos alinhados no meio -->
+  <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+  <g fill="#ffffff">
+    <rect x="150" y="132" width="40" height="248" rx="20"/>
+    <path fill-rule="evenodd" d="M190 132h76a124 124 0 0 1 0 248h-76a20 20 0 0 1-20-20V152a20 20 0 0 1 20-20zm40 60v128h34a64 64 0 0 0 0-128z"/>
+    <circle cx="410" cy="196" r="15"/>
+    <circle cx="410" cy="256" r="15"/>
+    <circle cx="410" cy="316" r="15"/>
+  </g>
 </svg>

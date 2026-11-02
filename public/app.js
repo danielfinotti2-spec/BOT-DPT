@@ -246,7 +246,15 @@ function abrirPainel() {
 
 $$('.aba').forEach((a) => a.addEventListener('click', async () => {
   $$('.aba').forEach((x) => x.classList.toggle('on', x === a));
-  $$('[data-tela]').forEach((s) => s.classList.toggle('escondido', s.dataset.tela !== a.dataset.aba));
+  $$('[data-tela]').forEach((s) => {
+    const mostrar = s.dataset.tela === a.dataset.aba;
+    s.classList.toggle('escondido', !mostrar);
+    if (!mostrar) return;
+    // cada troca de aba entra deslizando de leve
+    s.classList.remove('entrando');
+    void s.offsetWidth;
+    s.classList.add('entrando');
+  });
   if (a.dataset.aba === 'conversas') await desenharLista();
   if (a.dataset.aba === 'clientes') await desenharListaLeads();
 }));
@@ -301,12 +309,14 @@ async function abrirConversa(num) {
     </div>
     <div class="mensagens" id="msgs">
       ${c.msgs.map((m) => baloesHTML(m)).join('') || '<div class="vazio-conv">Sem mensagens.</div>'}
+      <div class="escrevendo" id="escrevendo" aria-label="O bot está escrevendo"><i></i><i></i><i></i></div>
     </div>
     <div class="caixa-responder">
       <textarea id="txtResponder" placeholder="Responder como você, pelo WhatsApp"></textarea>
       <button class="btn primario" id="btnEnviar">Enviar</button>
     </div>`;
   $('#msgs').scrollTop = 1e6;
+  ligarEscrevendo(c);
   $('#btnEnviar').addEventListener('click', enviarManual);
   $('#txtResponder').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarManual(); }
@@ -317,6 +327,17 @@ async function abrirConversa(num) {
     await desenharLista(); await abrirConversa(num);
   }));
   desenharLado(c);
+}
+
+// "o bot está escrevendo": aparece quando chegou mensagem do cliente e a resposta ainda não saiu
+function ligarEscrevendo(aberta) {
+  const balao = $('#escrevendo');
+  const caixa = $('#msgs');
+  if (!balao || !caixa) return;
+  const ultima = aberta?.msgs?.length ? aberta.msgs[aberta.msgs.length - 1] : null;
+  const esperando = !!ultima && ultima.role === 'user' && !aberta.pausado;
+  balao.classList.toggle('on', esperando);
+  if (esperando) caixa.scrollTop = 1e6;
 }
 
 async function enviarManual() {
@@ -350,11 +371,27 @@ const ultimoTexto = (s) => String(s ?? '').split('|||').map((x) => x.trim()).fil
 
 function desenharNumeros() {
   const r = ESTADO.resumo;
-  $('#numeros').innerHTML = `
-    <div class="painel-superficie num"><div class="v">${r.querFechar}</div><div class="r">querendo fechar</div></div>
-    <div class="painel-superficie num"><div class="v">${r.interessados}</div><div class="r">interessados</div></div>
-    <div class="painel-superficie num"><div class="v">${r.conversas}</div><div class="r">conversas</div></div>
-    <div class="painel-superficie num"><div class="v">${r.pausadas}</div><div class="r">esperando você</div></div>`;
+  const novos = { querFechar: r.querFechar, interessados: r.interessados, conversas: r.conversas, pausadas: r.pausadas };
+  const rotulos = { querFechar: 'querendo fechar', interessados: 'interessados', conversas: 'conversas', pausadas: 'esperando você' };
+  const el = $('#numeros');
+  const existentes = el.querySelectorAll('.num');
+  if (existentes.length === 4) {
+    // atualização sem redesenhar: só o número que mudou ganha a animação de subir
+    Object.keys(novos).forEach((k, i) => {
+      const v = existentes[i].querySelector('.v');
+      if (v.textContent !== String(novos[k])) {
+        v.textContent = novos[k];
+        v.classList.remove('mudou');
+        void v.offsetWidth;
+        v.classList.add('mudou');
+      }
+    });
+    return;
+  }
+  const anterior = el.dataset.ultimo;
+  el.dataset.ultimo = JSON.stringify(novos);
+  el.innerHTML = Object.entries(novos).map(([k, v]) => `
+    <div class="painel-superficie num"><div class="v">${v}</div><div class="r">${rotulos[k]}</div></div>`).join('');
 }
 
 function desenharEventos() {
@@ -366,6 +403,13 @@ function desenharEventos() {
 // ---------- clientes (Google Maps) ----------
 let LEADS_MAPS = [];
 let chaveGoogleSalva = false;
+
+// enquanto o Google responde, mostra linhas fantasma em vez de uma tela parada
+function esqueletoLista() {
+  const el = $('#listaLeads');
+  if (!el || LEADS_MAPS.length) return;
+  el.innerHTML = '<div class="esqueleto"><span></span><span></span><span></span></div>'.repeat(3);
+}
 
 async function desenharListaLeads() {
   const r = await api('/api/leads/lista');
@@ -410,8 +454,7 @@ async function desenharListaLeads() {
       }
       if (acao === 'sugestao') {
         b.disabled = true; b.textContent = 'Escrevendo…';
-        const r = await api('/api/leads/sugestao', { method: 'POST', body: { nome: l.nome, endereco: l.endereco, nota: l.nota } });
-        b.disabled = false; b.textContent = 'Sugerir mensagem';
+        const r = await api('/api/leads/sugestao', { method: 'POST', body: { nome: l.nome, endereco: l.endereco, nota: l.nota } });        b.disabled = false; b.textContent = 'Sugerir mensagem';
         if (!r.ok) return toast(r.mensagem || 'A IA não respondeu');
         return abrirJanelaEnvio(l, r.texto);
       }
@@ -454,12 +497,13 @@ $('#btnBuscar')?.addEventListener('click', async (e) => {
   const termo = $('#buscaTermo').value.trim();
   if (!termo) return toast('Escreva o que você procura');
   if (!$('#buscaChave').value && !chaveGoogleSalva) return toast('Cole a chave da API do Google');
-  b.disabled = true; b.textContent = 'Buscando…';
+  b.disabled = true; b.classList.add('carregando');
   $('#resBusca').innerHTML = '<div class="resultado"><span>·</span><span>Consultando o Google Maps e o telefone de cada empresa. Pode levar alguns segundos.</span></div>';
+  esqueletoLista();
   const r = await api('/api/leads/buscar', { method: 'POST', body: {
     termo, cidade: $('#buscaCidade').value.trim(), googleKey: $('#buscaChave').value || 'SALVA',
   } });
-  b.disabled = false; b.textContent = 'Buscar no Google Maps';
+  b.disabled = false; b.classList.remove('carregando');
   if (r.ok) {
     $('#buscaChave').value = '';
     if (r.novos) chaveGoogleSalva = true;
