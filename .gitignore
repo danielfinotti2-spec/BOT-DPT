@@ -1,0 +1,22 @@
+# O que nunca vai para o GitHub
+.env
+.env.*
+!.env.example
+
+# Dados do app (chaves, conversas, cadastros)
+data/
+*.log
+
+# Dependências e build
+node_modules/
+dist/
+recursos/node/node.exe
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testes e rascunhos
+shots/
+teste-*.mjs

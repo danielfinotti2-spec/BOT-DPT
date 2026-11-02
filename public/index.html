@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOT DPT</title>
+  <script>
+    // aplica o tema antes de desenhar a tela, para não piscar branco no modo escuro
+    (function () {
+      var escolhido = localStorage.getItem('botdpt.tema') || 'auto';
+      var escuro = escolhido === 'escuro' || (escolhido === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.tema = escuro ? 'escuro' : 'claro';
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilo.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d6a48'/%3E%3Cpath d='M9 21c0-6 3-10 7-10s7 4 7 10' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='10.5' r='2.2' fill='white'/%3E%3C/svg%3E">
+</head>
+<body>
+  <!-- barra do próprio app (a janela não usa a moldura do Windows) -->
+  <div class="app-barra" id="appBarra">
+    <div class="marca" aria-label="BOT DPT">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="currentColor" style="color:var(--acao)"/><path d="M6.5 16.5c0-4.4 2.4-7.5 5.5-7.5s5.5 3.1 5.5 7.5" stroke="var(--painel)" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.7" fill="var(--painel)"/></svg>
+      BOT DPT
+    </div>
+    <span class="caminho" id="caminho"></span>
+    <div class="dir">
+      <button class="btn link" id="btnTutorial">Como usar</button>
+      <span class="chip clicavel" id="chipWhats"><span class="bolinha"></span><span>WhatsApp</span></span>
+      <span class="chip" id="chipIA"><span class="bolinha"></span><span>IA</span></span>
+      <button class="btn primario" id="btnLigar" hidden>Ligar bot</button>
+      <button class="icone-btn" id="btnTema" aria-label="Mudar o tema"></button>
+    </div>
+    <div class="janela-botoes" id="janelaBotoes">
+      <button class="janela-btn" data-janela="minimizar" aria-label="Minimizar" title="Minimizar">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="janela-btn" data-janela="maximizar" aria-label="Maximizar" title="Maximizar">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.8" y="2.8" width="6.4" height="6.4" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+      </button>
+      <button class="janela-btn fechar" data-janela="fechar" aria-label="Fechar" title="Fechar">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.2 3.2l5.6 5.6M8.8 3.2l-5.6 5.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ CONFIGURAÇÃO INICIAL ============ -->
+  <main class="setup" id="setup">
+    <div class="cabeca">
+      <h1>Configuração em 4 passos.</h1>
+      <p>Tudo fica salvo no seu computador e pode ser alterado depois, com o atendimento já rodando.</p>
+    </div>
+
+    <div class="passos" id="passos">
+      <div class="p"></div><div class="p"></div><div class="p"></div><div class="p"></div>
+    </div>
+
+    <!-- passo 1 -->
+    <section class="painel-superficie painel-passo" data-passo="1">
+      <h2>Inteligência artificial</h2>
+      <p class="sub">É o serviço que escreve as respostas. Informe a chave do provedor que você usa.</p>
+      <label class="campo">
+        <span class="rotulo">Provedor</span>
+        <select class="entrada" id="aiProvider">
+          <option value="xkiro">xKiro</option>
+          <option value="apinex">APInex</option>
+          <option value="openai-compatible">Outro compatível com OpenAI</option>
+        </select>
+      </label>
+      <div class="linha-campos">
+        <label class="campo"><span class="rotulo">Endereço</span>
+          <input class="entrada mono" id="aiBaseUrl" placeholder="https://api.xkiro.com/v1"></label>
+        <label class="campo"><span class="rotulo">Chave</span>
+          <input class="entrada mono" id="aiKey" type="password" placeholder="sk-..." autocomplete="off"></label>
+      </div>
+      <label class="campo"><span class="rotulo">Modelo</span>
+        <input class="entrada mono" id="aiModel" placeholder="mistralai/mistral-large-2512">
+        <span class="dica">Opcional. Em branco usa o modelo padrão do provedor.</span></label>
+      <div id="resIA"></div>
+      <div class="acoes-passo">
+        <button class="btn" id="btnTestarIA">Testar chave</button>
+        <button class="btn primario" data-ir="2">Continuar</button>
+      </div>
+    </section>
+
+    <!-- passo 2 -->
+    <section class="painel-superficie painel-passo escondido" data-passo="2">
+      <h2>WhatsApp</h2>
+      <p class="sub">O app se conecta ao WhatsApp por meio da Evolution API. Se ela já estiver no ar, basta testar. Se não, use "Ligar Evolution".</p>
+      <div class="linha-campos">
+        <label class="campo"><span class="rotulo">Endereço da Evolution API</span>
+          <input class="entrada mono" id="evolutionUrl" placeholder="http://localhost:8080"></label>
+        <label class="campo"><span class="rotulo">Chave da Evolution API</span>
+          <input class="entrada mono" id="evolutionKey" type="password" placeholder="a chave da instalação" autocomplete="off"></label>
+      </div>
+      <label class="campo"><span class="rotulo">Nome da conexão</span>
+        <input class="entrada" id="evolutionInstancia" placeholder="meubot">
+        <span class="dica">Um apelido para identificar esta conexão.</span></label>
+      <div id="resWA"></div>
+      <div class="acoes-passo">
+        <button class="btn esq" id="btnTestarWA">Testar conexão</button>
+        <button class="btn" id="btnSubirEvolution">Ligar Evolution</button>
+        <button class="btn" data-voltar="1">Voltar</button>
+        <button class="btn primario" data-ir="3">Continuar</button>
+      </div>
+    </section>
+
+    <!-- passo 3 -->
+    <section class="painel-superficie painel-passo escondido" data-passo="3">
+      <h2>Conectar o número</h2>
+      <p class="sub">No celular do número que vai atender, abra Dispositivos conectados e toque em "Conectar dispositivo". Aponte a câmera para o código.</p>
+      <div class="qr-area" id="qrArea"><div class="espera">Clique em "Gerar QR Code" para começar.</div></div>
+      <div class="acoes-passo">
+        <button class="btn" data-voltar="2">Voltar</button>
+        <button class="btn primario" id="btnGerarQR">Gerar QR Code</button>
+      </div>
+    </section>
+
+    <!-- passo 4 -->
+    <section class="painel-superficie painel-passo escondido" data-passo="4">
+      <h2>Seu negócio</h2>
+      <p class="sub">É daqui que saem os preços, prazos e respostas. Pode deixar campos em branco e completar depois.</p>
+      <div class="linha-campos">
+        <label class="campo"><span class="rotulo">Nome do negócio</span><input class="entrada" id="negNome" placeholder="Ex: LM Store"></label>
+        <label class="campo"><span class="rotulo">Nome de quem atende</span><input class="entrada" id="negBot" placeholder="Ex: Ana"></label>
+      </div>
+      <div class="linha-campos">
+        <label class="campo"><span class="rotulo">Seu WhatsApp (com 55)</span><input class="entrada mono" id="negDono" placeholder="5521999999999">
+          <span class="dica">Onde você recebe o aviso quando um cliente quer fechar.</span></label>
+        <label class="campo"><span class="rotulo">Horário de atendimento</span><input class="entrada" id="negHorario" placeholder="Seg a sex, 9h às 18h"></label>
+      </div>
+      <label class="campo"><span class="rotulo">Produtos</span>
+        <span class="dica">Um por linha, no formato: nome; preço; descrição curta.</span>
+        <textarea class="entrada" id="negProdutos" placeholder="Pods descartáveis; 89,90; 20 mil puffs, várias cores
+Fumo para pods; 35,00; caixa com 10
+Acessórios; 25,00; carregadores e cases"></textarea></label>
+      <div class="linha-campos">
+        <label class="campo"><span class="rotulo">Formas de pagamento</span><input class="entrada" id="negPagamento" placeholder="Pix, cartão em até 3x"></label>
+        <label class="campo"><span class="rotulo">Prazo de entrega</span><input class="entrada" id="negPrazo" placeholder="Em até 2 dias úteis"></label>
+      </div>
+      <label class="campo"><span class="rotulo">Assuntos proibidos</span>
+        <input class="entrada" id="negNaoFalar" placeholder="Ex: concorrentes, desconto acima de 10%"></label>
+      <div id="resFim"></div>
+      <div class="acoes-passo">
+        <button class="btn" data-voltar="3">Voltar</button>
+        <button class="btn primario" id="btnFinalizar">Salvar e abrir o painel</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ PAINEL ============ -->
+  <main class="conteudo escondido" id="painel">
+    <div class="abas" role="tablist">
+      <button class="aba on" data-aba="conversas">Conversas</button>
+      <button class="aba" data-aba="clientes">Clientes</button>
+      <button class="aba" data-aba="resumo">Resumo</button>
+      <button class="aba" data-aba="negocio">Negócio</button>
+      <button class="aba" data-aba="chaves">Conexões</button>
+    </div>
+
+    <section data-tela="conversas">
+      <div class="grade-conversas">
+        <div class="painel-superficie col-lista">
+          <div class="filtros" id="filtros">
+            <button class="filtro on" data-f="todos">Todas</button>
+            <button class="filtro" data-f="quer_fechar">Querem fechar</button>
+            <button class="filtro" data-f="interessado">Interessados</button>
+            <button class="filtro" data-f="humano">Precisam de mim</button>
+          </div>
+          <div class="lista-conv" id="listaConv"></div>
+        </div>
+        <div class="painel-superficie janela" id="janela">
+          <div class="vazio-conv" id="vazioConv">Escolha uma conversa para ver o que o bot respondeu.</div>
+        </div>
+        <aside class="col-lado" id="lado"></aside>
+      </div>
+    </section>
+
+    <section data-tela="clientes" class="escondido">
+      <div class="painel-superficie" style="margin-bottom:14px">
+        <div class="busca-leads" id="formBusca">
+          <div class="linha-busca">
+            <input class="entrada" id="buscaTermo" placeholder="O que você procura — ex: barbearia, academia, loja de pods">
+            <input class="entrada" id="buscaCidade" placeholder="Cidade — ex: Rio de Janeiro">
+            <button class="btn primario" id="btnBuscar">Buscar no Google Maps</button>
+          </div>
+          <label class="campo" style="margin-top:12px"><span class="rotulo">Sua chave da API do Google</span>
+            <input class="entrada mono" id="buscaChave" placeholder="AIza..." autocomplete="off">
+            <span class="dica">Precisa ser uma chave com a "Places API (New)" ativada no Google Cloud. Nada é buscado sem você clicar em Buscar.</span></label>
+          <div id="resBusca"></div>
+        </div>
+      </div>
+      <div class="painel-superficie">
+        <div class="filtros" style="justify-content:space-between">
+          <strong style="font-size:13.5px;font-weight:500;padding:4px 2px" id="tituloLeads">Contatos encontrados</strong>
+          <button class="btn pequeno" id="btnAtualizarLeads">Atualizar</button>
+        </div>
+        <div class="lista-leads" id="listaLeads"><div class="vazio-lista">Nenhum contato ainda. Use a busca acima para trazer empresas do Google Maps.</div></div>
+      </div>
+      <p style="color:var(--tinta-3);font-size:12.5px;margin-top:10px;line-height:1.5">
+        Envio só acontece depois que você marcar o contato. Use o bom senso e o limite da sua conta: mensagens em massa para quem nunca pediu costumam levar ao bloqueio do número.
+      </p>
+    </section>
+
+    <section data-tela="resumo" class="escondido">
+      <div class="numeros" id="numeros"></div>
+      <div class="painel-superficie" style="margin-top:16px">
+        <div class="filtros" style="justify-content:space-between"><strong style="font-size:13.5px;font-weight:500;padding:4px 2px">Atividade</strong><span class="chip" id="chipAtividade"><span class="bolinha"></span>tempo real</span></div>
+        <div id="eventos"></div>
+      </div>
+    </section>
+
+    <section data-tela="negocio" class="escondido">
+      <div class="painel-superficie painel-passo">
+        <h2>Seu negócio</h2>
+        <p class="sub">A IA responde só com o que está aqui. Preço errado aqui vira preço errado no WhatsApp.</p>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Nome do negócio</span><input class="entrada" id="eNegNome"></label>
+          <label class="campo"><span class="rotulo">Nome de quem atende</span><input class="entrada" id="eNegBot"></label>
+        </div>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Seu WhatsApp (com 55)</span><input class="entrada mono" id="eNegDono"></label>
+          <label class="campo"><span class="rotulo">Horário</span><input class="entrada" id="eNegHorario"></label>
+        </div>
+        <label class="campo"><span class="rotulo">Produtos — nome; preço; descrição</span><textarea class="entrada" id="eNegProdutos"></textarea></label>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Pagamento</span><input class="entrada" id="eNegPagamento"></label>
+          <label class="campo"><span class="rotulo">Prazo</span><input class="entrada" id="eNegPrazo"></label>
+        </div>
+        <label class="campo"><span class="rotulo">Assuntos proibidos</span><input class="entrada" id="eNegNaoFalar"></label>
+        <div class="acoes-passo"><button class="btn primario" id="btnSalvarNegocio">Salvar</button></div>
+      </div>
+    </section>
+
+    <section data-tela="chaves" class="escondido">
+      <div class="painel-superficie painel-passo">
+        <h2>Conexões e chaves</h2>
+        <p class="sub">Depois de salvas, as chaves aparecem apenas mascaradas. Para trocar, cole a nova e salve.</p>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Chave da IA</span><input class="entrada mono" id="kAiKey" placeholder="salva" autocomplete="off"></label>
+          <label class="campo"><span class="rotulo">Modelo</span><input class="entrada mono" id="kAiModel"></label>
+        </div>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Chave do provedor de reserva</span><input class="entrada mono" id="kAltKey" placeholder="opcional" autocomplete="off"></label>
+          <label class="campo"><span class="rotulo">Modelo da reserva</span><input class="entrada mono" id="kAltModel"></label>
+        </div>
+        <div class="linha-campos">
+          <label class="campo"><span class="rotulo">Chave de áudio (Groq)</span><input class="entrada mono" id="kGroqKey" placeholder="opcional" autocomplete="off"></label>
+          <label class="campo"><span class="rotulo">Chave da Evolution</span><input class="entrada mono" id="kEvolutionKey" placeholder="salva" autocomplete="off"></label>
+        </div>
+        <div id="resChaves"></div>
+        <div class="acoes-passo">
+          <button class="btn" id="btnTestarTudo">Testar tudo</button>
+          <button class="btn primario" id="btnSalvarChaves">Salvar</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    BOT DPT · software livre sob licença MIT · <strong>use por sua conta e risco; o autor não se responsabiliza por nada</strong>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- janela de envio para um contato do Google Maps -->
+  <dialog id="dlgEnvio" style="border:1px solid var(--linha);border-radius:10px;padding:0;max-width:520px;width:94vw;background:var(--painel);color:var(--tinta)">
+    <div style="padding:20px 20px 4px">
+      <h2 style="font-size:17px" id="envioTitulo">Enviar mensagem</h2>
+      <p style="color:var(--tinta-2);font-size:13.5px;margin-top:4px" id="envioNumero"></p>
+    </div>
+    <div style="padding:12px 20px 4px">
+      <textarea class="entrada" id="envioTexto" style="min-height:130px" placeholder="Escreva a mensagem. Você pode editar tudo antes de enviar."></textarea>
+      <p style="color:var(--tinta-3);font-size:12.5px;margin-top:6px;line-height:1.5">Só sai do seu WhatsApp quando você clicar em Enviar. O número precisa aceitar mensagem de quem não está na agenda.</p>
+      <div id="envioResultado"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding:14px 20px 18px">
+      <button class="btn" id="btnFecharEnvio">Cancelar</button>
+      <button class="btn primario" id="btnEnviarLead">Enviar no WhatsApp</button>
+    </div>
+  </dialog>
+
+  <!-- janela do QR Code -->
+  <dialog id="dlgQR" style="border:1px solid var(--linha);border-radius:10px;padding:0;max-width:400px;width:92vw;background:var(--painel);color:var(--tinta)">
+    <div style="padding:20px 20px 4px">
+      <h2 style="font-size:17px">Conectar WhatsApp</h2>
+      <p style="color:var(--tinta-2);font-size:13.5px;margin-top:4px">Dispositivos conectados › Conectar dispositivo.</p>
+    </div>
+    <div class="qr-area" id="qrArea2" style="border:0;margin:0;padding:14px"><div class="espera">Preparando…</div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding:12px 20px 18px">
+      <button class="btn" id="btnFecharQR">Fechar</button>
+      <button class="btn primario" id="btnNovoQR">Gerar novo código</button>
+    </div>
+  </dialog>
+
+  <div class="tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourTitulo" hidden>
+    <div class="tour-veu"></div>
+    <div class="tour-alvo" id="tourAlvo"></div>
+    <div class="tour-cartao" id="tourCartao">
+      <span class="tour-contador" id="tourContador"></span>
+      <h3 id="tourTitulo"></h3>
+      <p id="tourTexto"></p>
+      <div class="tour-acoes">
+        <button class="btn link" id="tourPular">Pular</button>
+        <span class="tour-botoes">
+          <button class="btn" id="tourVoltar">Voltar</button>
+          <button class="btn primario" id="tourProximo">Entendi</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
